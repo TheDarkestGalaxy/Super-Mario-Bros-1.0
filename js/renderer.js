@@ -64,15 +64,34 @@ const Renderer = {
     this.ctx.fillRect(x, y, w, h);
   },
 
+  // Draw text with the built-in 5x7 bitmap font. `size` is the glyph height
+  // in world pixels; `y` is the top of the text. Includes a 1px drop shadow.
   text(str, x, y, color = "#fff", align = "left", size = 8) {
+    str = String(str);
+    const px = size / FONT_H; // world px per font pixel
+    const advance = (FONT_W + 1) * px; // per-character horizontal step
+    const totalW = str.length * advance - px;
+    let startX = x;
+    if (align === "center") startX = x - totalW / 2;
+    else if (align === "right") startX = x - totalW;
+    this._drawText(str, startX + px, y + px, "#000", px, advance); // shadow
+    this._drawText(str, startX, y, color, px, advance);
+  },
+
+  _drawText(str, x, y, color, px, advance) {
     const ctx = this.ctx;
-    ctx.font = `${size}px "Courier New", monospace`;
-    ctx.textBaseline = "top";
-    ctx.textAlign = align;
-    ctx.fillStyle = "#000";
-    ctx.fillText(str, x + 1, y + 1);
     ctx.fillStyle = color;
-    ctx.fillText(str, x, y);
+    for (let i = 0; i < str.length; i++) {
+      let ch = str[i];
+      const glyph = FONT[ch] || FONT[ch.toUpperCase()] || FONT[" "];
+      const gx = x + i * advance;
+      for (let r = 0; r < FONT_H; r++) {
+        const row = glyph[r];
+        for (let c = 0; c < FONT_W; c++) {
+          if (row[c] === "X") ctx.fillRect(gx + c * px, y + r * px, px, px);
+        }
+      }
+    }
   },
 
   // --- Background -----------------------------------------------------------
@@ -104,12 +123,15 @@ const Renderer = {
       this._cloud(sx, wy);
     }
 
-    // Hills (mid parallax).
+    // Hills (mid parallax). Only drawn where there is solid ground beneath
+    // their base, so they never float over a pit.
     for (let i = 0; i < 40; i++) {
       const wx = i * 180 + 20;
       const sx = wx - cam.x * 0.55;
       if (sx < -80 || sx > CONFIG.VIEW_W + 80) continue;
       const big = i % 2 === 0;
+      const w = big ? 80 : 52;
+      if (!this._hasGround(level, wx + w / 2)) continue;
       this._hill(sx, groundTop, big);
     }
 
@@ -118,8 +140,15 @@ const Renderer = {
       const wx = i * 96 + 70;
       const sx = wx - cam.x;
       if (sx < -50 || sx > CONFIG.VIEW_W + 50) continue;
+      if (!this._hasGround(level, wx + 12)) continue;
       this._bush(sx, groundTop);
     }
+  },
+
+  // Is there solid ground at the top ground row under this world x?
+  _hasGround(level, worldX) {
+    const col = Math.floor(worldX / CONFIG.TILE);
+    return level.isSolidTile(col, GROUND_ROW);
   },
 
   _cloud(x, y) {
@@ -503,21 +532,28 @@ const Renderer = {
 
   // --- HUD ------------------------------------------------------------------
   _hud(ctx, game) {
-    const pad = 8;
-    this.text("PLUMBER", pad, 6, "#fff", "left");
-    this.text(String(game.score).padStart(6, "0"), pad, 15, "#fff", "left");
+    // Score.
+    this.text("PLUMBER", 8, 5, "#fff");
+    this.text(String(game.score).padStart(6, "0"), 8, 15, "#fff");
 
-    this.text("©x" + String(game.coins).padStart(2, "0"), 92, 6, "#fff");
-    this._coin(92, 14, game.animTime);
+    // Coin count (row 1) with a little coin icon.
+    this.rect(94, 5, 6, 8, "#f8d000");
+    this.rect(95, 5, 4, 2, "#ffe870");
+    this.rect(96, 7, 2, 4, "#b58900");
+    this.text("x" + String(game.coins).padStart(2, "0"), 103, 5, "#fff");
 
-    this.text(game.level ? game.level.name.split("  ")[0] : "1-1", 150, 6, "#fff");
-    this.text("WORLD", 150, 15, "#fff");
+    // Lives (row 2) with a little life icon.
+    this.rect(94, 16, 6, 8, "#e52521");
+    this.rect(95, 15, 4, 2, "#f8b878");
+    this.text("x" + game.lives, 103, 15, "#fff");
 
-    this.text("TIME", 214, 6, "#fff");
-    this.text(String(Math.ceil(game.time)).padStart(3, "0"), 220, 15, "#fff");
+    // World.
+    this.text("WORLD", 150, 5, "#fff");
+    this.text(game.level ? game.level.name.split("  ")[0] : "1-1", 158, 15, "#fff");
 
-    this.text("x" + game.lives, 60, 15, "#fff");
-    this.rect(52, 15, 7, 8, "#e52521"); // tiny life icon
+    // Time.
+    this.text("TIME", 210, 5, "#fff");
+    this.text(String(Math.ceil(game.time)).padStart(3, "0"), 214, 15, "#fff");
   },
 
   // --- Overlays -------------------------------------------------------------
