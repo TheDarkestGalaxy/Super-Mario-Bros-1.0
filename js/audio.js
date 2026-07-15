@@ -6,9 +6,12 @@
 const Sound = {
   ctx: null,
   master: null,
+  musicGain: null,
   muted: false,
   _musicTimer: null,
-  _musicStep: 0,
+  _tracks: null,
+  _nextTime: 0,
+  _noteLen: 0,
 
   init() {
     // AudioContext must be created/resumed after a user gesture.
@@ -18,6 +21,40 @@ const Sound = {
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.25;
     this.master.connect(this.ctx.destination);
+    // Music sits on its own quieter bus so sound effects stay punchy.
+    this.musicGain = this.ctx.createGain();
+    this.musicGain.gain.value = 0.55;
+    this.musicGain.connect(this.master);
+  },
+
+  // Convert a note name like "C4" / "F#3" to a frequency in Hz.
+  noteFreq(name) {
+    const semis = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    const m = /^([A-G])(#|b)?(-?\d)$/.exec(name);
+    if (!m) return 0;
+    let s = semis[m[1]];
+    if (m[2] === "#") s += 1;
+    if (m[2] === "b") s -= 1;
+    const octave = parseInt(m[3], 10);
+    const midi = (octave + 1) * 12 + s;
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  },
+
+  // Schedule a note at an absolute AudioContext time on a given destination.
+  noteAt(freq, startTime, dur, type, vol, dest) {
+    if (!this.ctx || !freq) return;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, startTime);
+    // Tiny attack + decay for a plucky chiptune envelope.
+    g.gain.setValueAtTime(0.0001, startTime);
+    g.gain.exponentialRampToValueAtTime(vol, startTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, startTime + dur * 0.9);
+    osc.connect(g);
+    g.connect(dest || this.master);
+    osc.start(startTime);
+    osc.stop(startTime + dur);
   },
 
   resume() {
@@ -120,21 +157,68 @@ const Sound = {
     seq.forEach((n, i) => this.tone(n, 0.3, "triangle", 0.4, i * 0.28));
   },
 
-  // --- Looping background bassline -----------------------------------------
+  // --- Looping background music --------------------------------------------
+  // An original, upbeat chiptune over a I–vi–IV–V progression (C · Am · F · G).
+  // Three tracks (melody / bass / arpeggio) are scheduled ahead of time on the
+  // audio clock for tight, jitter-free timing. Durations are in 16th notes.
+  _buildTracks() {
+    const n = (name, d) => ({ f: this.noteFreq(name), d });
+    const r = (d) => ({ f: 0, d }); // rest
+
+    const melody = [
+      // Bar 1: C        Bar 2: Am
+      n("E4", 4), n("G4", 4), n("C5", 4), n("G4", 4),
+      n("A4", 4), n("C5", 4), n("E5", 4), n("C5", 4),
+      // Bar 3: F        Bar 4: G
+      n("F4", 4), n("A4", 4), n("C5", 4), n("A4", 4),
+      n("G4", 4), n("B4", 4), n("D5", 4), n("G4", 2), n("F4", 2),
+    ];
+
+    const bass = [
+      // each root/fifth is an eighth note (2 sixteenths)
+      n("C3", 2), n("C3", 2), n("G3", 2), n("C3", 2), n("C3", 2), n("E3", 2), n("G3", 2), n("E3", 2),
+      n("A2", 2), n("A2", 2), n("E3", 2), n("A2", 2), n("A2", 2), n("C3", 2), n("E3", 2), n("C3", 2),
+      n("F2", 2), n("F2", 2), n("C3", 2), n("F2", 2), n("F2", 2), n("A2", 2), n("C3", 2), n("A2", 2),
+      n("G2", 2), n("G2", 2), n("D3", 2), n("G2", 2), n("G2", 2), n("B2", 2), n("D3", 2), n("B2", 2),
+    ];
+
+    const arp = [
+      n("C4", 2), n("E4", 2), n("G4", 2), n("E4", 2), n("C4", 2), n("E4", 2), n("G4", 2), n("E4", 2),
+      n("A3", 2), n("C4", 2), n("E4", 2), n("C4", 2), n("A3", 2), n("C4", 2), n("E4", 2), n("C4", 2),
+      n("F3", 2), n("A3", 2), n("C4", 2), n("A3", 2), n("F3", 2), n("A3", 2), n("C4", 2), n("A3", 2),
+      n("G3", 2), n("B3", 2), n("D4", 2), n("B3", 2), n("G3", 2), n("B3", 2), n("D4", 2), n("B3", 2),
+    ];
+
+    return [
+      { notes: melody, type: "square", vol: 0.22, idx: 0, next: 0 },
+      { notes: bass, type: "triangle", vol: 0.28, idx: 0, next: 0 },
+      { notes: arp, type: "square", vol: 0.07, idx: 0, next: 0 },
+    ];
+  },
+
   startMusic() {
     if (!this.ctx || this._musicTimer) return;
-    // A simple, cheerful walking bassline (frequencies in Hz).
-    const bass = [
-      330, 330, 0, 330, 0, 262, 330, 0, 392, 0, 0, 0, 196, 0, 0, 0,
-    ];
-    this._musicStep = 0;
-    const beat = 0.19;
-    this._musicTimer = setInterval(() => {
-      if (this.muted) return;
-      const n = bass[this._musicStep % bass.length];
-      if (n) this.tone(n, beat * 0.9, "triangle", 0.16);
-      this._musicStep++;
-    }, beat * 1000);
+    const bpm = 132;
+    this._noteLen = 60 / bpm / 4; // duration of one 16th note
+    this._tracks = this._buildTracks();
+    const start = this.ctx.currentTime + 0.12;
+    this._tracks.forEach((t) => (t.next = start));
+    // Look-ahead scheduler (see "A Tale of Two Clocks").
+    this._musicTimer = setInterval(() => this._schedule(), 25);
+  },
+
+  _schedule() {
+    if (!this.ctx || !this._tracks) return;
+    const horizon = this.ctx.currentTime + 0.2;
+    for (const t of this._tracks) {
+      while (t.next < horizon) {
+        const note = t.notes[t.idx];
+        const dur = note.d * this._noteLen;
+        this.noteAt(note.f, t.next, dur, t.type, t.vol, this.musicGain);
+        t.next += dur;
+        t.idx = (t.idx + 1) % t.notes.length;
+      }
+    }
   },
 
   stopMusic() {
@@ -142,5 +226,6 @@ const Sound = {
       clearInterval(this._musicTimer);
       this._musicTimer = null;
     }
+    this._tracks = null;
   },
 };

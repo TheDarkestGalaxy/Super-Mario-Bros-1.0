@@ -22,6 +22,12 @@ const Input = {
   mutePressed: false, // one-shot, set on keydown
   anyPressed: false, // one-shot, any key this frame
 
+  // Jump input buffer: a jump press stays "queued" for a few steps so a press
+  // made slightly before landing still triggers a jump. This makes the
+  // controls feel far more consistent/responsive.
+  JUMP_BUFFER: 7,
+  jumpBuffer: 0,
+
   _prevJump: false,
   _prevRun: false,
 
@@ -61,6 +67,7 @@ const Input = {
       if (e.code === "KeyM") this.mutePressed = true;
       const action = map[e.code];
       if (action) this[action] = true;
+      if (action === "jump") this.jumpBuffer = this.JUMP_BUFFER;
     });
 
     window.addEventListener("keyup", (e) => {
@@ -71,6 +78,7 @@ const Input = {
     window.addEventListener("blur", () => {
       this.left = this.right = this.up = this.down = false;
       this.jump = this.run = false;
+      this.jumpBuffer = 0;
     });
   },
 
@@ -79,9 +87,19 @@ const Input = {
     this.runPressed = this.run && !this._prevRun;
   },
 
+  // Called by the player when a jump is actually performed.
+  consumeJump() {
+    if (this.jumpBuffer > 0) {
+      this.jumpBuffer = 0;
+      return true;
+    }
+    return false;
+  },
+
   endFrame() {
     this._prevJump = this.jump;
     this._prevRun = this.run;
+    if (this.jumpBuffer > 0) this.jumpBuffer--;
     this.pausePressed = false;
     this.mutePressed = false;
     this.anyPressed = false;

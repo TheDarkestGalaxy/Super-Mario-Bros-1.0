@@ -17,6 +17,7 @@ class Player {
     this.vy = 0;
     this.facing = 1;
     this.onGround = false;
+    this.coyote = 0; // grace frames to still jump just after leaving ground
     this.jumpHeld = false;
 
     this.state = "normal"; // normal | dying | clear
@@ -133,6 +134,9 @@ class Player {
 
     const info = Physics.moveAndCollide(this, level);
     this.onGround = info.onGround;
+    // Refresh coyote-time window while grounded, otherwise count it down.
+    if (this.onGround) this.coyote = 6;
+    else if (this.coyote > 0) this.coyote--;
 
     // Head-butted one or more blocks: bump the one closest to our center.
     if (info.headTiles.length && this.vy <= 0) {
@@ -192,9 +196,13 @@ class Player {
   }
 
   _handleJump() {
-    if (this.onGround && Input.jumpPressed) {
+    // Jump if a press is buffered AND we're on the ground (or within the
+    // short coyote-time window after walking off a ledge).
+    const canJump = this.onGround || this.coyote > 0;
+    if (canJump && Input.consumeJump()) {
       this.vy = -CONFIG.JUMP_SPEED;
       this.onGround = false;
+      this.coyote = 0;
       Sound.jump();
     }
   }
