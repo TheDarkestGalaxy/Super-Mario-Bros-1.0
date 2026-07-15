@@ -1,0 +1,111 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  background: #0b0b16;
+  color: #fff;
+  font-family: "Courier New", monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#game-shell {
+  position: relative;
+  /* Internal canvas is 256x240 (NES-ish). Scale up with crisp pixels. */
+  width: min(96vw, 1024px);
+  aspect-ratio: 256 / 240;
+  box-shadow: 0 0 0 4px #1a1a2e, 0 0 40px rgba(0, 0, 0, 0.7);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #5c94fc;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 6, 20, 0.82);
+  backdrop-filter: blur(2px);
+  text-align: center;
+  transition: opacity 0.25s ease;
+}
+
+.overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.overlay-inner {
+  padding: 24px;
+}
+
+.title {
+  font-size: clamp(28px, 6vw, 64px);
+  line-height: 1.05;
+  letter-spacing: 3px;
+  color: #fbd000;
+  text-shadow: 3px 3px 0 #e52521, 6px 6px 0 #000;
+  margin-bottom: 14px;
+}
+
+.subtitle {
+  font-size: clamp(12px, 1.6vw, 18px);
+  color: #cbd5e1;
+  margin-bottom: 28px;
+}
+
+.btn {
+  font-family: inherit;
+  font-size: clamp(14px, 2vw, 22px);
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: #0b0b16;
+  background: #fbd000;
+  border: none;
+  padding: 14px 26px;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #b58900;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #b58900;
+}
+
+.controls {
+  margin-top: 30px;
+  font-size: clamp(11px, 1.4vw, 15px);
+  color: #94a3b8;
+  line-height: 1.9;
+}
+
+.controls b {
+  color: #fbd000;
+}
+
+.controls .hint {
+  margin-top: 10px;
+  color: #64748b;
+  font-size: 0.9em;
+}

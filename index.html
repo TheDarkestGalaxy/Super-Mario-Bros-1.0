@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Super Plumber Bros</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="game-shell">
+    <canvas id="game" width="256" height="240"></canvas>
+
+    <div id="overlay" class="overlay">
+      <div class="overlay-inner">
+        <h1 class="title">SUPER<br />PLUMBER BROS</h1>
+        <p class="subtitle" id="overlay-subtitle">A from-scratch platformer</p>
+        <button id="start-btn" class="btn">PRESS TO START</button>
+        <div class="controls">
+          <p><b>Move</b> &nbsp;&larr; &rarr; / A D</p>
+          <p><b>Jump</b> &nbsp;Space / W / &uarr; / Z / K</p>
+          <p><b>Run / Fire</b> &nbsp;Shift / X / J</p>
+          <p><b>Pause</b> &nbsp;P &nbsp;&middot;&nbsp; <b>Mute</b> &nbsp;M</p>
+          <p class="hint">Tip: if jump-while-running fails, use Z (jump) + X (run)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/camera.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/items.js"></script>
+  <script src="js/enemies.js"></script>
+  <script src="js/fireball.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/level.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
