@@ -11,6 +11,7 @@ window.addEventListener("load", () => {
   Renderer.init(canvas);
   Input.init();
   Sound.init();
+  if (typeof Playtest !== "undefined") Playtest.init();
 
   const game = new Game(canvas, overlay);
   window.game = game; // handy for debugging in the console
@@ -37,6 +38,7 @@ window.addEventListener("load", () => {
 
   // Update the title-screen subtitle with a tiny hint.
   if (subtitle) {
-    subtitle.textContent = "3 custom levels · stomp, grow, throw fireballs";
+    subtitle.textContent =
+      "pipes lead underground · press ` for playtest mode";
   }
 });

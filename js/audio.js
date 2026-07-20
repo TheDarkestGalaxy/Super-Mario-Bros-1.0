@@ -158,49 +158,93 @@ const Sound = {
   },
 
   // --- Looping background music --------------------------------------------
-  // An original, upbeat chiptune over a I–vi–IV–V progression (C · Am · F · G).
-  // Three tracks (melody / bass / arpeggio) are scheduled ahead of time on the
-  // audio clock for tight, jitter-free timing. Durations are in 16th notes.
-  _buildTracks() {
+  // Original chiptune arrangements that capture the *feel* of classic NES
+  // platformer themes (syncopated square lead, walking bass, bright tempo)
+  // without copying any copyrighted melody.
+  _buildTracks(theme) {
     const n = (name, d) => ({ f: this.noteFreq(name), d });
     const r = (d) => ({ f: 0, d }); // rest
 
+    if (theme === "under") {
+      // Lower, minor, slightly slower underground pulse.
+      const melody = [
+        n("A3", 4), n("E4", 2), n("A3", 2), n("C4", 4), n("E4", 4),
+        n("G3", 4), n("D4", 2), n("G3", 2), n("B3", 4), n("D4", 4),
+        n("F3", 4), n("C4", 2), n("F3", 2), n("A3", 4), n("C4", 4),
+        n("E3", 4), n("B3", 2), n("E3", 2), n("G3", 4), n("B3", 2), r(2),
+      ];
+      const bass = [
+        n("A2", 4), n("A2", 4), n("A2", 4), n("E2", 4),
+        n("G2", 4), n("G2", 4), n("G2", 4), n("D2", 4),
+        n("F2", 4), n("F2", 4), n("F2", 4), n("C2", 4),
+        n("E2", 4), n("E2", 4), n("E2", 4), n("B1", 4),
+      ];
+      const pulse = [
+        n("A4", 2), r(2), n("A4", 2), r(2), n("C5", 2), r(2), n("A4", 2), r(2),
+        n("G4", 2), r(2), n("G4", 2), r(2), n("B4", 2), r(2), n("G4", 2), r(2),
+        n("F4", 2), r(2), n("F4", 2), r(2), n("A4", 2), r(2), n("F4", 2), r(2),
+        n("E4", 2), r(2), n("E4", 2), r(2), n("G4", 2), r(2), n("E4", 2), r(2),
+      ];
+      return [
+        { notes: melody, type: "square", vol: 0.18, idx: 0, next: 0 },
+        { notes: bass, type: "triangle", vol: 0.3, idx: 0, next: 0 },
+        { notes: pulse, type: "square", vol: 0.06, idx: 0, next: 0 },
+      ];
+    }
+
+    // Overworld: bright, bouncy, syncopated — classic NES platformer energy.
+    // Key of G, cheerful call-and-response lead + walking bass.
     const melody = [
-      // Bar 1: C        Bar 2: Am
-      n("E4", 4), n("G4", 4), n("C5", 4), n("G4", 4),
-      n("A4", 4), n("C5", 4), n("E5", 4), n("C5", 4),
-      // Bar 3: F        Bar 4: G
-      n("F4", 4), n("A4", 4), n("C5", 4), n("A4", 4),
-      n("G4", 4), n("B4", 4), n("D5", 4), n("G4", 2), n("F4", 2),
+      // phrase A
+      n("G4", 2), n("B4", 2), n("D5", 2), r(1), n("B4", 1), n("D5", 2), n("G5", 4),
+      n("E5", 2), n("C5", 2), n("A4", 2), r(1), n("C5", 1), n("E5", 2), n("A5", 4),
+      // phrase B
+      n("F5", 2), n("D5", 2), n("B4", 2), r(1), n("D5", 1), n("F5", 2), n("B5", 2), n("A5", 2),
+      n("G5", 2), n("D5", 2), n("B4", 2), n("G4", 2), n("A4", 2), n("B4", 2), n("D5", 4),
+      // phrase C (lift)
+      n("G5", 2), r(1), n("G5", 1), n("F5", 2), n("E5", 2), n("D5", 2), n("B4", 2), n("G4", 2),
+      n("A4", 2), n("B4", 2), n("C5", 2), n("D5", 2), n("E5", 2), n("D5", 2), n("B4", 4),
+      // phrase D (resolve)
+      n("C5", 2), n("E5", 2), n("G5", 2), n("E5", 2), n("C5", 2), n("A4", 2), n("F4", 4),
+      n("B4", 2), n("D5", 2), n("G5", 2), n("D5", 2), n("B4", 2), n("G4", 2), n("G4", 2), r(2),
     ];
 
     const bass = [
-      // each root/fifth is an eighth note (2 sixteenths)
-      n("C3", 2), n("C3", 2), n("G3", 2), n("C3", 2), n("C3", 2), n("E3", 2), n("G3", 2), n("E3", 2),
-      n("A2", 2), n("A2", 2), n("E3", 2), n("A2", 2), n("A2", 2), n("C3", 2), n("E3", 2), n("C3", 2),
-      n("F2", 2), n("F2", 2), n("C3", 2), n("F2", 2), n("F2", 2), n("A2", 2), n("C3", 2), n("A2", 2),
-      n("G2", 2), n("G2", 2), n("D3", 2), n("G2", 2), n("G2", 2), n("B2", 2), n("D3", 2), n("B2", 2),
+      n("G2", 2), n("G2", 2), n("D3", 2), n("G2", 2), n("G2", 2), n("B2", 2), n("D3", 2), n("G2", 2),
+      n("A2", 2), n("A2", 2), n("E3", 2), n("A2", 2), n("A2", 2), n("C3", 2), n("E3", 2), n("A2", 2),
+      n("B2", 2), n("B2", 2), n("F3", 2), n("B2", 2), n("B2", 2), n("D3", 2), n("F3", 2), n("B2", 2),
+      n("G2", 2), n("G2", 2), n("D3", 2), n("G2", 2), n("G2", 2), n("B2", 2), n("D3", 2), n("G2", 2),
+      n("G2", 2), n("G2", 2), n("D3", 2), n("G2", 2), n("G2", 2), n("B2", 2), n("D3", 2), n("G2", 2),
+      n("A2", 2), n("A2", 2), n("E3", 2), n("A2", 2), n("A2", 2), n("C3", 2), n("E3", 2), n("A2", 2),
+      n("C3", 2), n("C3", 2), n("G3", 2), n("C3", 2), n("F2", 2), n("F2", 2), n("C3", 2), n("F2", 2),
+      n("G2", 2), n("G2", 2), n("D3", 2), n("G2", 2), n("G2", 2), n("D3", 2), n("G2", 2), r(2),
     ];
 
-    const arp = [
-      n("C4", 2), n("E4", 2), n("G4", 2), n("E4", 2), n("C4", 2), n("E4", 2), n("G4", 2), n("E4", 2),
-      n("A3", 2), n("C4", 2), n("E4", 2), n("C4", 2), n("A3", 2), n("C4", 2), n("E4", 2), n("C4", 2),
-      n("F3", 2), n("A3", 2), n("C4", 2), n("A3", 2), n("F3", 2), n("A3", 2), n("C4", 2), n("A3", 2),
-      n("G3", 2), n("B3", 2), n("D4", 2), n("B3", 2), n("G3", 2), n("B3", 2), n("D4", 2), n("B3", 2),
+    // Soft off-beat "harmony sparkle"
+    const sparkle = [
+      r(2), n("D5", 1), r(1), r(2), n("G5", 1), r(1), r(2), n("D5", 1), r(1), r(2), n("B4", 1), r(1),
+      r(2), n("E5", 1), r(1), r(2), n("A5", 1), r(1), r(2), n("E5", 1), r(1), r(2), n("C5", 1), r(1),
+      r(2), n("F5", 1), r(1), r(2), n("B5", 1), r(1), r(2), n("F5", 1), r(1), r(2), n("D5", 1), r(1),
+      r(2), n("D5", 1), r(1), r(2), n("G5", 1), r(1), r(2), n("D5", 1), r(1), r(2), n("B4", 1), r(1),
+      r(2), n("D5", 1), r(1), r(2), n("G5", 1), r(1), r(2), n("D5", 1), r(1), r(2), n("B4", 1), r(1),
+      r(2), n("E5", 1), r(1), r(2), n("A5", 1), r(1), r(2), n("E5", 1), r(1), r(2), n("C5", 1), r(1),
+      r(2), n("G5", 1), r(1), r(2), n("E5", 1), r(1), r(2), n("C5", 1), r(1), r(2), n("A4", 1), r(1),
+      r(2), n("G5", 1), r(1), r(2), n("D5", 1), r(1), r(2), n("B4", 1), r(1), r(2), n("G4", 1), r(1),
     ];
 
     return [
-      { notes: melody, type: "square", vol: 0.22, idx: 0, next: 0 },
+      { notes: melody, type: "square", vol: 0.2, idx: 0, next: 0 },
       { notes: bass, type: "triangle", vol: 0.28, idx: 0, next: 0 },
-      { notes: arp, type: "square", vol: 0.07, idx: 0, next: 0 },
+      { notes: sparkle, type: "square", vol: 0.07, idx: 0, next: 0 },
     ];
   },
 
-  startMusic() {
-    if (!this.ctx || this._musicTimer) return;
-    const bpm = 132;
+  startMusic(theme = "over") {
+    if (!this.ctx) return;
+    this.stopMusic();
+    const bpm = theme === "under" ? 100 : 118;
     this._noteLen = 60 / bpm / 4; // duration of one 16th note
-    this._tracks = this._buildTracks();
+    this._tracks = this._buildTracks(theme);
     const start = this.ctx.currentTime + 0.12;
     this._tracks.forEach((t) => (t.next = start));
     // Look-ahead scheduler (see "A Tale of Two Clocks").

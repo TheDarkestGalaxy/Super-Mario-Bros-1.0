@@ -20,12 +20,14 @@ class Player {
     this.coyote = 0; // grace frames to still jump just after leaving ground
     this.jumpHeld = false;
 
-    this.state = "normal"; // normal | dying | clear
+    this.state = "normal"; // normal | dying | clear | pipeIn | pipeOut
     this.starTimer = 0; // invincibility from a star
     this.hurtTimer = 0; // brief i-frames after taking damage
     this.fireCooldown = 0;
     this.animTime = 0;
     this.dead = false;
+    this.pipeTimer = 0;
+    this.pipeTarget = null; // set by game when entering/exiting a pipe
   }
 
   get big() {
@@ -33,7 +35,12 @@ class Player {
   }
 
   get invincible() {
-    return this.starTimer > 0;
+    return (
+      this.starTimer > 0 ||
+      (typeof Playtest !== "undefined" &&
+        Playtest.enabled &&
+        Playtest.invincible)
+    );
   }
 
   get centerX() {
@@ -76,7 +83,11 @@ class Player {
 
   // Returns true if the hit killed the player.
   damage() {
-    if (this.invincible || this.hurtTimer > 0 || this.state !== "normal") {
+    if (
+      this.invincible ||
+      this.hurtTimer > 0 ||
+      this.state !== "normal"
+    ) {
       return false;
     }
     if (this.power === "fire" || this.power === "big") {
@@ -122,6 +133,25 @@ class Player {
       this.vy = Math.min(this.vy + CONFIG.GRAVITY, CONFIG.MAX_FALL);
       Physics.moveAndCollide(this, level);
       return;
+    }
+
+    if (this.state === "pipeIn" || this.state === "pipeOut") {
+      this._updatePipe(game);
+      return;
+    }
+
+    // Press Down on an enterable / exit pipe.
+    if (Input.downPressed || (Input.down && this.onGround)) {
+      const enter = level.enterPipeAt(this);
+      const exit = level.exitPipeAt(this);
+      if (Input.down && enter) {
+        game.beginPipeEnter(enter);
+        return;
+      }
+      if (Input.down && exit) {
+        game.beginPipeExit();
+        return;
+      }
     }
 
     this._handleHorizontal();
@@ -215,6 +245,45 @@ class Player {
     game.fireballs.push(fb);
     this.fireCooldown = 18;
     Sound.fireball();
+  }
+
+  // Slide into / out of a pipe (called while state is pipeIn / pipeOut).
+  _updatePipe(game) {
+    this.vx = 0;
+    this.vy = 0;
+    this.pipeTimer--;
+    if (this.state === "pipeIn") {
+      this.y += 1.2;
+      if (this.pipeTimer <= 0) game.finishPipeEnter();
+    } else {
+      // pipeOut: rise up out of the pipe
+      this.y -= 1.2;
+      if (this.pipeTimer <= 0) {
+        this.state = "normal";
+        this.pipeTimer = 0;
+      }
+    }
+  }
+
+  startPipeIn(pipe) {
+    this.state = "pipeIn";
+    this.pipeTarget = pipe;
+    this.pipeTimer = 28;
+    this.vx = 0;
+    this.vy = 0;
+    // Center on the pipe.
+    this.x = pipe.x * CONFIG.TILE + CONFIG.TILE - this.w / 2;
+    Sound.bump();
+  }
+
+  startPipeOut(pipe) {
+    this.state = "pipeOut";
+    this.pipeTarget = pipe;
+    this.pipeTimer = 28;
+    this.vx = 0;
+    this.vy = 0;
+    this.x = pipe.x * CONFIG.TILE + CONFIG.TILE - this.w / 2;
+    this.y = pipe.topRow * CONFIG.TILE;
   }
 
   _collectCoinTiles(level, game) {

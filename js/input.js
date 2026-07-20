@@ -18,6 +18,7 @@ const Input = {
 
   jumpPressed: false, // true for exactly one step after jump goes down
   runPressed: false, // true for exactly one step after run goes down
+  downPressed: false, // true for exactly one step after down goes down
   pausePressed: false, // one-shot, set on keydown
   mutePressed: false, // one-shot, set on keydown
   anyPressed: false, // one-shot, any key this frame
@@ -30,6 +31,7 @@ const Input = {
 
   _prevJump: false,
   _prevRun: false,
+  _prevDown: false,
 
   init() {
     // Multiple keys map to each action. The extra letter keys (Z/X, J/K)
@@ -85,6 +87,7 @@ const Input = {
   beginFrame() {
     this.jumpPressed = this.jump && !this._prevJump;
     this.runPressed = this.run && !this._prevRun;
+    this.downPressed = this.down && !this._prevDown;
   },
 
   // Called by the player when a jump is actually performed.
@@ -99,6 +102,7 @@ const Input = {
   endFrame() {
     this._prevJump = this.jump;
     this._prevRun = this.run;
+    this._prevDown = this.down;
     if (this.jumpBuffer > 0) this.jumpBuffer--;
     this.pausePressed = false;
     this.mutePressed = false;

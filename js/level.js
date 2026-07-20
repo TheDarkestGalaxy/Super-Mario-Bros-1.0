@@ -11,6 +11,8 @@ class Level {
     this.cols = def.width;
     this.rows = 15;
     this.time = def.time || CONFIG.LEVEL_TIME;
+    this.theme = def.theme || "over"; // "over" | "under"
+    this.isUnder = this.theme === "under";
 
     // grid[row][col] = tile id
     this.grid = [];
@@ -26,9 +28,15 @@ class Level {
 
     this.startX = def.start.x * CONFIG.TILE;
     this.startY = def.start.y * CONFIG.TILE;
-    this.flagX = def.flag * CONFIG.TILE;
+    // Underground rooms have no flagpole.
+    this.flagX =
+      def.flag == null ? Number.POSITIVE_INFINITY : def.flag * CONFIG.TILE;
     this.pixelWidth = this.cols * CONFIG.TILE;
     this.pixelHeight = this.rows * CONFIG.TILE;
+
+    // Enterable / exit pipes collected during build.
+    this.enterPipes = []; // { x, topRow, returnX }
+    this.exitPipe = null; // { x, topRow }
 
     this._build();
   }
@@ -41,13 +49,26 @@ class Level {
   _build() {
     const d = this.def;
 
-    // Ground spans (two tiles thick).
+    // Ground spans (two tiles thick). Underground uses brick as the floor.
+    const groundId = this.isUnder ? T.BRICK : T.GROUND;
     (d.ground || []).forEach(([s, e]) => {
       for (let c = s; c <= e; c++) {
-        this._set(c, GROUND_ROW, T.GROUND);
-        this._set(c, GROUND_ROW + 1, T.GROUND);
+        this._set(c, GROUND_ROW, groundId);
+        this._set(c, GROUND_ROW + 1, groundId);
       }
     });
+
+    // Underground: brick ceiling + side walls for a tunnel feel.
+    if (this.isUnder) {
+      for (let c = 0; c < this.cols; c++) {
+        this._set(c, 0, T.BRICK);
+        this._set(c, 1, T.BRICK);
+      }
+      for (let r = 2; r < GROUND_ROW; r++) {
+        this._set(0, r, T.BRICK);
+        this._set(this.cols - 1, r, T.BRICK);
+      }
+    }
 
     // Pipes (2 tiles wide, h tiles tall).
     (d.pipes || []).forEach((p) => {
@@ -60,6 +81,16 @@ class Level {
           this._set(p.x, r, T.PIPE_L);
           this._set(p.x + 1, r, T.PIPE_R);
         }
+      }
+      if (p.enter) {
+        this.enterPipes.push({
+          x: p.x,
+          topRow: top,
+          returnX: p.returnX != null ? p.returnX : p.x + 4,
+        });
+      }
+      if (p.exit) {
+        this.exitPipe = { x: p.x, topRow: top };
       }
     });
 
@@ -125,9 +156,38 @@ class Level {
     this._set(col, row, id);
   }
 
+  // Find an enterable pipe the player is standing on (or null).
+  enterPipeAt(player) {
+    if (!player.onGround) return null;
+    const feetY = player.y + player.h;
+    const cx = player.centerX;
+    for (const pipe of this.enterPipes) {
+      const left = pipe.x * CONFIG.TILE;
+      const right = left + CONFIG.TILE * 2;
+      const topY = pipe.topRow * CONFIG.TILE;
+      if (cx > left + 2 && cx < right - 2 && Math.abs(feetY - topY) < 3) {
+        return pipe;
+      }
+    }
+    return null;
+  }
+
+  // Standing on the underground exit pipe?
+  exitPipeAt(player) {
+    if (!this.exitPipe || !player.onGround) return null;
+    const pipe = this.exitPipe;
+    const feetY = player.y + player.h;
+    const cx = player.centerX;
+    const left = pipe.x * CONFIG.TILE;
+    const right = left + CONFIG.TILE * 2;
+    const topY = pipe.topRow * CONFIG.TILE;
+    if (cx > left + 2 && cx < right - 2 && Math.abs(feetY - topY) < 3) {
+      return pipe;
+    }
+    return null;
+  }
+
   // Player head-butts a block from below. `big` = whether player is powered up.
-  // Returns a descriptor of what happened so the game can react (spawn items,
-  // play sounds, add score).
   bump(col, row, big) {
     const id = this.tileAt(col, row);
     this._startBump(col, row);
@@ -157,7 +217,6 @@ class Level {
   bumpOffset(col, row) {
     const b = this.bumps.get(`${col},${row}`);
     if (!b) return 0;
-    // A quick up-then-down hop (max ~5px).
     return -Math.sin((b.t / 10) * Math.PI) * 5;
   }
 

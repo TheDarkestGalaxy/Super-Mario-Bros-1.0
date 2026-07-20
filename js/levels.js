@@ -13,7 +13,11 @@
 // Fields:
 //   ground : array of [startCol, endCol] inclusive spans of solid ground.
 //            Anything not covered by a span is a bottomless pit.
-//   pipes  : { x, h }              green pipe at column x, h tiles tall.
+//   pipes  : { x, h, enter?, returnX?, exit? }
+//            enter:true = press Down on top to go underground.
+//            returnX = overworld column to reappear at after exiting.
+//            exit:true = underground exit pipe (press Down to leave).
+//   underground : bonus-room definition used when entering an enter-pipe.
 //   blocks : { x, y, type }        type: "brick" | "?" | "!" | "X" | "coin"
 //   runs   : { x, y, type, n }     n copies of a block type laid horizontally.
 //   stairs : { x, h, dir }         staircase; dir "up" or "down", h tiles tall.
@@ -24,6 +28,84 @@
 // ---------------------------------------------------------------------------
 
 const GROUND_ROW = 13;
+
+// Shared underground bonus-room layouts (coin caches).
+function makeUnderRoom(style) {
+  const base = {
+    theme: "under",
+    time: 300,
+    start: { x: 3, y: 12 },
+    flag: null,
+  };
+  if (style === "coins") {
+    return {
+      ...base,
+      name: "UNDERGROUND",
+      width: 36,
+      ground: [[0, 35]],
+      pipes: [{ x: 30, h: 2, exit: true }],
+      coins: [
+        { x: 8, y: 10 },
+        { x: 9, y: 10 },
+        { x: 10, y: 10 },
+        { x: 11, y: 10 },
+        { x: 12, y: 10 },
+        { x: 14, y: 8 },
+        { x: 15, y: 8 },
+        { x: 16, y: 8 },
+        { x: 17, y: 8 },
+        { x: 18, y: 8 },
+        { x: 20, y: 10 },
+        { x: 21, y: 10 },
+        { x: 22, y: 10 },
+        { x: 23, y: 10 },
+      ],
+      blocks: [
+        { x: 10, y: 6, type: "?" },
+        { x: 16, y: 6, type: "!" },
+        { x: 22, y: 6, type: "?" },
+      ],
+      enemies: [{ x: 19, y: 12, type: "goomba" }],
+    };
+  }
+  // Longer coin tunnel.
+  return {
+    ...base,
+    name: "UNDERGROUND",
+    width: 48,
+    ground: [[0, 47]],
+    pipes: [{ x: 42, h: 2, exit: true }],
+    coins: [
+      { x: 6, y: 10 },
+      { x: 7, y: 9 },
+      { x: 8, y: 10 },
+      { x: 10, y: 8 },
+      { x: 11, y: 8 },
+      { x: 12, y: 8 },
+      { x: 14, y: 10 },
+      { x: 15, y: 10 },
+      { x: 16, y: 10 },
+      { x: 20, y: 7 },
+      { x: 21, y: 7 },
+      { x: 22, y: 7 },
+      { x: 23, y: 7 },
+      { x: 28, y: 9 },
+      { x: 29, y: 9 },
+      { x: 30, y: 9 },
+      { x: 31, y: 9 },
+      { x: 32, y: 9 },
+    ],
+    blocks: [
+      { x: 12, y: 5, type: "?" },
+      { x: 21, y: 5, type: "!" },
+      { x: 30, y: 5, type: "?" },
+    ],
+    enemies: [
+      { x: 18, y: 12, type: "goomba" },
+      { x: 26, y: 12, type: "koopa" },
+    ],
+  };
+}
 
 const Levels = {
   GROUND_ROW,
@@ -43,11 +125,13 @@ const Levels = {
         [74, 139],
       ],
       pipes: [
-        { x: 30, h: 2 },
+        // Stand on this pipe and press Down to enter the underground.
+        { x: 30, h: 2, enter: true, returnX: 54 },
         { x: 52, h: 3 },
         { x: 88, h: 2 },
         { x: 96, h: 4 },
       ],
+      underground: makeUnderRoom("coins"),
       blocks: [
         { x: 18, y: 9, type: "brick" },
         { x: 19, y: 9, type: "?" },
@@ -83,6 +167,8 @@ const Levels = {
 
     // =====================================================================
     // LEVEL 2 — "Sky Steps"  (more platforming, floating brick islands)
+    // Gaps are kept to ~2 tiles (walk-jumpable). The "sky steps" are 2-wide
+    // platforms, not single bricks, so landings are fair.
     // =====================================================================
     {
       name: "1-2  SKY STEPS",
@@ -90,46 +176,50 @@ const Levels = {
       time: 300,
       start: { x: 3, y: 12 },
       ground: [
-        [0, 20],
-        [24, 30],
-        [40, 44],
-        [48, 70],
-        [74, 90],
-        [96, 159],
+        [0, 22],
+        [25, 32], // 2-tile pit
+        // sky-steps section bridges 33..44 via floating platforms
+        [45, 54],
+        [57, 72], // 2-tile pit
+        [75, 90], // 2-tile pit
+        [93, 159], // 2-tile pit (was an unfair 5-tile death gap)
       ],
       pipes: [
-        { x: 16, h: 2 },
-        { x: 62, h: 3 },
+        { x: 16, h: 2, enter: true, returnX: 66 },
+        { x: 64, h: 3 },
         { x: 108, h: 4 },
         { x: 112, h: 2 },
       ],
+      underground: makeUnderRoom("tunnel"),
       blocks: [
-        // floating brick island #1
-        { x: 25, y: 8, type: "brick" },
-        { x: 26, y: 8, type: "?" },
+        // optional floating reward above early ground
         { x: 27, y: 8, type: "brick" },
-        // stepping bricks over the first gap
-        { x: 34, y: 10, type: "brick" },
-        { x: 36, y: 8, type: "?" },
-        { x: 38, y: 6, type: "brick" },
+        { x: 28, y: 8, type: "?" },
+        { x: 29, y: 8, type: "brick" },
+        // sky steps over the pit (2-wide platforms, ~2-tile gaps, gentle climb)
+        { x: 34, y: 11, type: "brick" },
+        { x: 35, y: 11, type: "brick" },
+        { x: 38, y: 9, type: "?" },
+        { x: 39, y: 9, type: "brick" },
+        { x: 42, y: 10, type: "brick" },
+        { x: 43, y: 10, type: "brick" },
         // power-up island
-        { x: 55, y: 7, type: "!" },
-        { x: 56, y: 7, type: "brick" },
+        { x: 60, y: 7, type: "!" },
+        { x: 61, y: 7, type: "brick" },
         // high coin bricks
         { x: 80, y: 6, type: "?" },
         { x: 81, y: 6, type: "brick" },
         { x: 82, y: 6, type: "?" },
       ],
       coins: [
-        { x: 41, y: 9 },
-        { x: 42, y: 9 },
-        { x: 43, y: 9 },
-        { x: 71, y: 8 },
-        { x: 72, y: 7 },
-        { x: 73, y: 6 },
+        { x: 36, y: 8 },
+        { x: 37, y: 8 },
+        { x: 40, y: 7 },
+        { x: 41, y: 7 },
+        { x: 73, y: 9 },
+        { x: 74, y: 9 },
         { x: 91, y: 9 },
-        { x: 92, y: 8 },
-        { x: 93, y: 7 },
+        { x: 92, y: 9 },
       ],
       stairs: [
         { x: 130, h: 4, dir: "up" },
@@ -140,7 +230,7 @@ const Levels = {
         { x: 28, y: 12, type: "koopa" },
         { x: 50, y: 12, type: "goomba" },
         { x: 52, y: 12, type: "goomba" },
-        { x: 66, y: 12, type: "koopa" },
+        { x: 68, y: 12, type: "koopa" },
         { x: 85, y: 12, type: "goomba" },
         { x: 100, y: 12, type: "goomba" },
         { x: 120, y: 12, type: "koopa" },
@@ -158,22 +248,23 @@ const Levels = {
       start: { x: 3, y: 12 },
       ground: [
         [0, 18],
-        [22, 26],
-        [30, 34],
-        [38, 60],
-        [66, 84],
-        [88, 92],
-        [96, 128],
-        [134, 179],
+        [21, 26], // 2-tile pits (walk-jumpable)
+        [29, 34],
+        [37, 60],
+        [63, 84], // was a 5-tile death gap
+        [87, 92],
+        [95, 128],
+        [131, 179], // was a 5-tile death gap
       ],
       pipes: [
         { x: 10, h: 3 },
-        { x: 44, h: 4 },
+        { x: 44, h: 4, enter: true, returnX: 78 },
         { x: 48, h: 2 },
         { x: 74, h: 5 },
         { x: 104, h: 3 },
         { x: 120, h: 4 },
       ],
+      underground: makeUnderRoom("tunnel"),
       blocks: [
         { x: 23, y: 9, type: "?" },
         { x: 31, y: 9, type: "!" },
